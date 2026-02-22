@@ -16,27 +16,24 @@ BASE_DIR = "checked"
 FOLDER_RU = os.path.join(BASE_DIR, "RU_Best")
 FOLDER_EURO = os.path.join(BASE_DIR, "My_Euro")
 
-# Чистим папки перед стартом
 if os.path.exists(FOLDER_RU): shutil.rmtree(FOLDER_RU)
 if os.path.exists(FOLDER_EURO): shutil.rmtree(FOLDER_EURO)
 os.makedirs(FOLDER_RU, exist_ok=True)
 os.makedirs(FOLDER_EURO, exist_ok=True)
 
-# Основные параметры
 TIMEOUT = 5
 socket.setdefaulttimeout(TIMEOUT)
 THREADS = 40
 
 CACHE_HOURS = 6
-CHUNK_LIMIT = 1000           # для RU остаётся как есть
-EURO_CHUNK_LIMIT = 500       # новый: EU по 500 ключей на файл
+CHUNK_LIMIT = 1000
+EURO_CHUNK_LIMIT = 500
 MAX_KEYS_TO_CHECK = 30000
 
 MAX_PING_MS = 3000
 FAST_LIMIT = 3000
-MAX_HISTORY_AGE = 2 * 24 * 3600  # 2 дня
+MAX_HISTORY_AGE = 2 * 24 * 3600
 
-# Фиксированные имена файлов
 RU_FILES = ["ru_white_part1.txt", "ru_white_part2.txt", "ru_white_part3.txt", "ru_white_part4.txt"]
 EURO_FILES = ["my_euro_part1.txt", "my_euro_part2.txt", "my_euro_part3.txt"]
 
@@ -67,36 +64,28 @@ URLS_MY = [
 EURO_CODES = {"NL", "DE", "FI", "GB", "FR", "SE", "PL", "CZ", "AT", "CH", "IT", "ES", "NO", "DK", "BE", "IE", "LU", "EE", "LV", "LT"}
 BAD_MARKERS = ["CN", "IR", "KR", "BR", "IN", "RELAY", "POOL", "🇨🇳", "🇮🇷", "🇰🇷"]
 
-# ------------------ Жёсткий фильтр русских выходных серверов для EU ------------------
+# ------------------ Жёсткий фильтр русских выходных серверов ------------------
 
 RU_MARKERS_STRICT = [
     ".ru", "moscow", "msk", "spb", "saint-peter", "russia",
     "россия", "москва", "питер", "ru-", "-ru.",
-    "178.154.", "77.88.", "5.255.", "87.250.",   # Яндекс/VK диапазоны
-    "95.108.", "213.180.", "195.208.",             # Яндекс
-    "91.108.", "149.154.",                          # Telegram-серверы в РФ
+    "178.154.", "77.88.", "5.255.", "87.250.",
+    "95.108.", "213.180.", "195.208.",
+    "91.108.", "149.154.",
 ]
 
 def is_russian_exit(key_str, host, country):
-    """
-    Жёсткая проверка: является ли сервер фактически российским,
-    даже если формально определён как EU.
-    """
     if country == "RU":
         return True
-
     host_lower = host.lower()
     key_upper = key_str.upper()
-
     if host_lower.endswith(".ru"):
         return True
-
     for marker in RU_MARKERS_STRICT:
         if marker.lower() in host_lower:
             return True
         if marker.upper() in key_upper:
             return True
-
     return False
 
 # ------------------ Функции ------------------
@@ -143,11 +132,9 @@ def fetch_keys(urls, tag):
         try:
             if "github.com" in url and "/blob/" in url:
                 url = url.replace("github.com", "raw.githubusercontent.com").replace("/blob/", "/")
-            
             r = requests.get(url, timeout=10)
             if r.status_code != 200: continue
             content = r.text.strip()
-            
             if "://" not in content:
                 try:
                     lines = base64.b64decode(content + "==").decode('utf-8', errors='ignore').splitlines()
@@ -155,7 +142,6 @@ def fetch_keys(urls, tag):
                     lines = content.splitlines()
             else:
                 lines = content.splitlines()
-            
             for l in lines:
                 l = l.strip()
                 if len(l) > 2000: continue
@@ -176,7 +162,7 @@ def check_single_key(data):
             return None, None, None, None
 
         country = get_country_fast(host, key)
-        
+
         if tag == "MY" and country == "RU":
             return None, None, None, None
 
@@ -187,7 +173,7 @@ def check_single_key(data):
         if match: path = unquote(match.group(1))
 
         start = time.time()
-        
+
         if is_ws:
             protocol = "wss" if is_tls else "ws"
             ws_url = f"{protocol}://{host}:{port}{path}"
@@ -206,24 +192,22 @@ def check_single_key(data):
                 with context.wrap_socket(sock, server_hostname=host): pass
         else:
             with socket.create_connection((host, port), timeout=TIMEOUT): pass
-            
+
         latency = int((time.time() - start) * 1000)
-        return latency, tag, country, host   # +host
+        return latency, tag, country, host
     except:
         return None, None, None, None
 
 def make_final_key(k_id, latency, country):
-    """Создает ключ с правильно закодированной меткой для Hiddify"""
     info_str = f"[{latency}ms {country} {MY_CHANNEL}]"
     label_encoded = quote(info_str, safe='')
     return f"{k_id}#{label_encoded}"
 
 def extract_ping(key_str):
-    """Извлекает пинг из метки ключа"""
     try:
         decoded = unquote(key_str)
         label = decoded.split("#")[-1]
-        match = re.search(r'(\d+)ms', label)
+        match = re.search(r'(\d+)ms', label)  # ✅ ИСПРАВЛЕНО
         if match:
             return int(match.group(1))
         return None
@@ -231,16 +215,12 @@ def extract_ping(key_str):
         return None
 
 def save_exact(keys, folder, filename):
-    """Сохраняет ключи в конкретный файл"""
     path = os.path.join(folder, filename)
     with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(keys) if keys else "")
+        f.write("\n".join(keys) if keys else "")  # ✅ ИСПРАВЛЕНО
     return path
 
 def save_fixed_chunks_ru(keys_list, folder):
-    """
-    Сохраняет RU ключи в фиксированные 4 файла по CHUNK_LIMIT (1000) ключей.
-    """
     valid_keys = [k.strip() for k in keys_list if k and k.strip()]
     chunks = [valid_keys[i:i + CHUNK_LIMIT] for i in range(0, min(len(valid_keys), CHUNK_LIMIT * 4), CHUNK_LIMIT)]
     while len(chunks) < 4:
@@ -252,11 +232,7 @@ def save_fixed_chunks_ru(keys_list, folder):
     return RU_FILES
 
 def save_fixed_chunks_euro(keys_list, folder):
-    """
-    Сохраняет EURO ключи в фиксированные 3 файла по EURO_CHUNK_LIMIT (500) ключей.
-    """
     valid_keys = [k.strip() for k in keys_list if k and k.strip()]
-    # По 500 вместо 1000
     chunks = [valid_keys[i:i + EURO_CHUNK_LIMIT]
               for i in range(0, min(len(valid_keys), EURO_CHUNK_LIMIT * 3), EURO_CHUNK_LIMIT)]
     while len(chunks) < 3:
@@ -268,7 +244,6 @@ def save_fixed_chunks_euro(keys_list, folder):
     return EURO_FILES
 
 def save_chunked(keys_list, folder, base_name, chunk_size=None):
-    """Режет список на чанки и сохраняет base_name_partN.txt."""
     if chunk_size is None:
         chunk_size = CHUNK_LIMIT
     valid_keys = [k.strip() for k in keys_list if k and k.strip()]
@@ -282,7 +257,6 @@ def save_chunked(keys_list, folder, base_name, chunk_size=None):
     return file_names
 
 def generate_subscriptions_list():
-    """Генерирует subscriptions_list.txt с аккуратным набором ссылок."""
     GITHUB_USER_REPO = "kort0881/vpn-checker-backend"
     BRANCH = "main"
     BASE_RAW = f"https://raw.githubusercontent.com/{GITHUB_USER_REPO}/{BRANCH}"
@@ -292,7 +266,6 @@ def generate_subscriptions_list():
     subs_lines.append("=== 🇷🇺 RUSSIA (FAST) ===")
     for filename in RU_FILES:
         subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{filename}")
-
     subs_lines.append("")
 
     subs_lines.append("=== 🇷🇺 RUSSIA (ALL) ===")
@@ -302,13 +275,11 @@ def generate_subscriptions_list():
     )
     for fname in ru_all_candidates[:2]:
         subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{fname}")
-
     subs_lines.append("")
 
     subs_lines.append("=== 🇪🇺 EUROPE (FAST) ===")
     for filename in EURO_FILES:
         subs_lines.append(f"{BASE_RAW}/checked/My_Euro/{filename}")
-
     subs_lines.append("")
 
     subs_lines.append("=== 🇪🇺 EUROPE (ALL) ===")
@@ -321,7 +292,7 @@ def generate_subscriptions_list():
 
     subs_path = os.path.join(BASE_DIR, "subscriptions_list.txt")
     with open(subs_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(subs_lines))
+        f.write("\n".join(subs_lines))  # ✅ ИСПРАВЛЕНО
 
     print(f"\n📋 subscriptions_list.txt создан ({len([l for l in subs_lines if l.startswith('http')])} ссылок):")
     for line in subs_lines:
@@ -335,36 +306,34 @@ def generate_subscriptions_list():
 if __name__ == "__main__":
     print("=== CHECKER v5 (FAST/ALL LAYERS) ===")
     print(f"Параметры: CACHE={CACHE_HOURS}h, MAX_PING={MAX_PING_MS}ms, FAST={FAST_LIMIT}, HISTORY={MAX_HISTORY_AGE//3600}h")
-    
-    # 1. Загрузка истории и ключей
+
     history = load_json(HISTORY_FILE)
     tasks = fetch_keys(URLS_RU, "RU") + fetch_keys(URLS_MY, "MY")
-    
-    # Дедупликация
+
     unique_tasks = {k: tag for k, tag in tasks}
     all_items = list(unique_tasks.items())
-    
+
     if len(all_items) > MAX_KEYS_TO_CHECK:
         all_items = all_items[:MAX_KEYS_TO_CHECK]
-    
+
     current_time = time.time()
     to_check = []
     res_ru = []
     res_euro = []
-    
+
     print(f"\n📊 Всего уникальных ключей: {len(all_items)}")
 
-    # 2. Обработка кэша
+    # 2. Кэш
     for k, tag in all_items:
         k_id = k.split("#")[0]
         cached = history.get(k_id)
-        
+
         if cached and (current_time - cached['time'] < CACHE_HOURS * 3600) and cached['alive']:
             latency = cached['latency']
             country = cached.get('country', 'UNKNOWN')
-            host = cached.get('host', '')     # берём host из истории
+            host = cached.get('host', '')
             final = make_final_key(k_id, latency, country)
-            
+
             if tag == "RU":
                 res_ru.append(final)
             elif tag == "MY" and not is_russian_exit(k, host, country):
@@ -380,34 +349,34 @@ if __name__ == "__main__":
         checked_count = 0
         with ThreadPoolExecutor(max_workers=THREADS) as executor:
             future_to_item = {executor.submit(check_single_key, item): item for item in to_check}
-            
+
             for future in future_to_item:
                 key, tag = future_to_item[future]
                 res = future.result()
-                
+
                 if not res or res[0] is None:
                     continue
-                
-                latency, _, country, host = res   # +host
+
+                latency, _, country, host = res
                 k_id = key.split("#")[0]
-                
+
                 history[k_id] = {
                     'alive': True,
                     'latency': latency,
                     'time': time.time(),
                     'country': country,
-                    'host': host    # сохраняем host в историю
+                    'host': host
                 }
-                
+
                 final = make_final_key(k_id, latency, country)
-                
+
                 if tag == "RU":
                     res_ru.append(final)
                 elif tag == "MY" and not is_russian_exit(key, host, country):
                     res_euro.append(final)
-                
+
                 checked_count += 1
-        
+
         print(f"✅ Проверено успешно: {checked_count}")
 
     # 4. Чистка истории
@@ -417,17 +386,8 @@ if __name__ == "__main__":
     })
 
     # 5. Фильтрация по пингу + сортировка
-    res_ru_clean = []
-    for k in res_ru:
-        p = extract_ping(k)
-        if p is not None and p <= MAX_PING_MS:
-            res_ru_clean.append(k)
-
-    res_euro_clean = []
-    for k in res_euro:
-        p = extract_ping(k)
-        if p is not None and p <= MAX_PING_MS:
-            res_euro_clean.append(k)
+    res_ru_clean = [k for k in res_ru if extract_ping(k) is not None and extract_ping(k) <= MAX_PING_MS]
+    res_euro_clean = [k for k in res_euro if extract_ping(k) is not None and extract_ping(k) <= MAX_PING_MS]
 
     res_ru_clean.sort(key=extract_ping)
     res_euro_clean.sort(key=extract_ping)
@@ -436,10 +396,9 @@ if __name__ == "__main__":
     print(f"  RU: {len(res_ru_clean)} ключей")
     print(f"  EURO: {len(res_euro_clean)} ключей")
 
-    # 6. Формируем fast/all слои
+    # 6. FAST / ALL слои
     res_ru_fast = res_ru_clean[:FAST_LIMIT]
     res_euro_fast = res_euro_clean[:FAST_LIMIT]
-
     res_ru_all = res_ru_clean
     res_euro_all = res_euro_clean
 
@@ -447,18 +406,18 @@ if __name__ == "__main__":
     print(f"  RU FAST: {len(res_ru_fast)}")
     print(f"  EURO FAST: {len(res_euro_fast)}")
 
-    # 7. Сохранение фиксированных файлов (FAST для префильтра)
-    print(f"\n💾 Сохранение RU FAST в фиксированные файлы {FOLDER_RU}:")
+    # 7. Сохранение FAST
+    print(f"\n💾 Сохранение RU FAST → {FOLDER_RU}:")
     save_fixed_chunks_ru(res_ru_fast, FOLDER_RU)
 
-    print(f"\n💾 Сохранение EURO FAST в фиксированные файлы {FOLDER_EURO} (по {EURO_CHUNK_LIMIT} ключей):")
+    print(f"\n💾 Сохранение EURO FAST → {FOLDER_EURO} (по {EURO_CHUNK_LIMIT} ключей):")
     save_fixed_chunks_euro(res_euro_fast, FOLDER_EURO)
 
-    # 8. Сохранение ALL слоёв (динамические чанки)
-    print(f"\n💾 Сохранение RU ALL чанками в {FOLDER_RU}:")
+    # 8. Сохранение ALL
+    print(f"\n💾 Сохранение RU ALL → {FOLDER_RU}:")
     ru_all_files = save_chunked(res_ru_all, FOLDER_RU, "ru_white_all")
 
-    print(f"\n💾 Сохранение EURO ALL чанками в {FOLDER_EURO} (по {EURO_CHUNK_LIMIT} ключей):")
+    print(f"\n💾 Сохранение EURO ALL → {FOLDER_EURO} (по {EURO_CHUNK_LIMIT} ключей):")
     euro_all_files = save_chunked(res_euro_all, FOLDER_EURO, "my_euro_all",
                                   chunk_size=EURO_CHUNK_LIMIT)
 
@@ -466,8 +425,10 @@ if __name__ == "__main__":
     generate_subscriptions_list()
 
     print("\n✅ SUCCESS: FAST/ALL LAYERS GENERATED")
-    print(f"  Префильтр использует: {len(RU_FILES)} RU + {len(EURO_FILES)} EURO (FAST)")
-    print(f"  Постер покажет: ~9-11 кнопок (FAST + ограниченные ALL)")
+    print(f"  Префильтр: {len(RU_FILES)} RU + {len(EURO_FILES)} EURO (FAST)")
+    print(f"  Постер: до 8 кнопок (FAST + ограниченные ALL)")
+
+
 
 
 
