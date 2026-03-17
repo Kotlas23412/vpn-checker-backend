@@ -18,13 +18,18 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0  # Полная история для rebase + merge
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync latest main  # Фикс non-fast-forward
+        run: |
+          git config pull.rebase true
+          git pull origin main
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Исправление для Ubuntu 24.04
+          python-version: '3.12'
           cache: 'pip'
 
       - name: Install Dependencies
@@ -49,4 +54,5 @@ jobs:
           file_pattern: "checked/*"
           commit_user_name: "GitHub Actions Bot"
           commit_user_email: "actions@github.com"
+          push_options: '--force-with-lease'  # Безопасный force на случай редких гонок
 
