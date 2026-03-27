@@ -53,3 +53,4 @@ jobs:
           commit_message: "🤖 Auto-update ALL checked keys [${{ github.run_id }}]"
           file_pattern: "checked/*"
           commit_user_name: "GitHub Actions Bot"
+          push_options: '--force'
