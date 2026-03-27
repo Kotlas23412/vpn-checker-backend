@@ -45,9 +45,9 @@ IP_CACHE_MAX_AGE_DAYS = 30
 GEO_API_RATE_LIMIT = 38
 GEO_API_WINDOW = 60.0
 
-# Единственный источник — весь пул без geo-фильтра
+# Единственный источник — весь пул без geo-фильтра (из mirror_all_raw.py)
 URLS_ALL = [
-    "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/refs/heads/main/githubmirror/clean_nofilter/all_nofilter.txt",
+    "https://raw.githubusercontent.com/kort0881/vpn-vless-configs-russia/refs/heads/main/githubmirror/clean_nofilter_all/all_nofilter_all.txt",
 ]
 
 MY_CHANNEL = "@vlesstrojan"
@@ -283,7 +283,6 @@ def check_single_key(key: str):
 # ================== ФОРМАТ И СОХРАНЕНИЕ ==================
 
 def make_final_key(k_id, latency, country):
-    # Подписываем только ping и страну, без RU/EURO деления
     info_str = f"[{latency}ms {country or 'UNKNOWN'} {MY_CHANNEL}]"
     return f"{k_id}#{info_str}"
 
@@ -340,7 +339,7 @@ def generate_subscriptions_list(all_files):
     BASE_RAW = f"https://raw.githubusercontent.com/{GITHUB_USER_REPO}/{BRANCH}"
 
     subs_lines = []
-    subs_lines.append("=== 🌍 ALL (ALL) ===")
+    subs_lines.append("=== 🌍 ALL (ALL-RAW) ===")
     for filename in all_files:
         subs_lines.append(f"{BASE_RAW}/checked/ALL/{filename}")
     subs_lines.append("")
@@ -360,7 +359,7 @@ def generate_subscriptions_list(all_files):
 # ================== MAIN ==================
 
 if __name__ == "__main__":
-    print("=== CHECKER v2 (ALL from all_nofilter + GEO-CACHE) ===")
+    print("=== CHECKER v2 (ALL-RAW from all_nofilter_all + GEO-CACHE) ===")
     print(f"Параметры: CACHE={CACHE_HOURS}h, MAX_PING={MAX_PING_MS}ms, FAST={FAST_LIMIT}, HISTORY={MAX_HISTORY_AGE // 3600}h")
 
     load_ip_cache()
@@ -370,7 +369,7 @@ if __name__ == "__main__":
     history = load_json(HISTORY_FILE)
 
     tasks_raw = fetch_keys(URLS_ALL)
-    unique_keys = list(dict.fromkeys(tasks_raw))  # preserve order, dedup
+    unique_keys = list(dict.fromkeys(tasks_raw))  # preserve order, dedup по строкам
     if len(unique_keys) > MAX_KEYS_TO_CHECK:
         unique_keys = unique_keys[:MAX_KEYS_TO_CHECK]
 
@@ -460,10 +459,10 @@ if __name__ == "__main__":
 
     print(f"\n🌍 Гео-статистика:")
     with _geo_stats_lock:
-        stats = dict(_geo_stats)
-    total_geo = sum(stats.values()) or 1
+        stats_geo = dict(_geo_stats)
+    total_geo = sum(stats_geo.values()) or 1
     for src in ("api", "cache", "fast", "unknown"):
-        n = stats.get(src, 0)
+        n = stats_geo.get(src, 0)
         print(f"  {src:8s}: {n:5d}  ({n * 100 // total_geo}%)")
     if _ip_api_disabled:
         print("  ⚠️  ip-api был отключён из-за 429 в процессе работы")
