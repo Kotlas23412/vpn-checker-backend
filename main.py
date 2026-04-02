@@ -567,40 +567,69 @@ def generate_subscriptions_list(ru_fast_files, ru_all_files, euro_fast_files, eu
 
     subs_lines = []
 
-    subs_lines.append("=== 🇷🇺 RUSSIA (FAST) ===")
-    for filename in ru_fast_files:
-        subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{filename}")
-    subs_lines.append("")
+    def nonempty_files(folder, filenames):
+        out = []
+        for fname in filenames:
+            path = os.path.join(folder, fname)
+            if os.path.exists(path) and os.path.getsize(path) > 0:
+                out.append(fname)
+        return out
 
-    subs_lines.append("=== 🇷🇺 RUSSIA (ALL) ===")
-    for fname in ru_all_files:
-        subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{fname}")
-    subs_lines.append("")
+    # RUSSIA FAST
+    ru_fast_nonempty = nonempty_files(FOLDER_RU, ru_fast_files)
+    if ru_fast_nonempty:
+        subs_lines.append("=== 🇷🇺 RUSSIA (FAST) ===")
+        for filename in ru_fast_nonempty:
+            subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{filename}")
+        subs_lines.append("")
 
-    subs_lines.append("=== 🇪🇺 EUROPE (FAST) ===")
-    for filename in euro_fast_files:
-        subs_lines.append(f"{BASE_RAW}/checked/My_Euro/{filename}")
-    subs_lines.append("")
+    # RUSSIA ALL
+    ru_all_nonempty = nonempty_files(FOLDER_RU, ru_all_files)
+    if ru_all_nonempty:
+        subs_lines.append("=== 🇷🇺 RUSSIA (ALL) ===")
+        for fname in ru_all_nonempty:
+            subs_lines.append(f"{BASE_RAW}/checked/RU_Best/{fname}")
+        subs_lines.append("")
 
-    subs_lines.append("=== 🇪🇺 EUROPE (ALL) ===")
-    for fname in euro_all_files:
-        subs_lines.append(f"{BASE_RAW}/checked/My_Euro/{fname}")
-    subs_lines.append("")
+    # EUROPE FAST
+    euro_fast_nonempty = nonempty_files(FOLDER_EURO, euro_fast_files)
+    if euro_fast_nonempty:
+        subs_lines.append("=== 🇪🇺 EUROPE (FAST) ===")
+        for filename in euro_fast_nonempty:
+            subs_lines.append(f"{BASE_RAW}/checked/My_Euro/{filename}")
+        subs_lines.append("")
 
-    subs_lines.append("=== ✅ WHITE RUSSIA (ALL) ===")
-    subs_lines.append(f"{BASE_RAW}/checked/RU_Best/ru_white_all_WHITE.txt")
-    subs_lines.append("")
+    # EUROPE ALL
+    euro_all_nonempty = nonempty_files(FOLDER_EURO, euro_all_files)
+    if euro_all_nonempty:
+        subs_lines.append("=== 🇪🇺 EUROPE (ALL) ===")
+        for fname in euro_all_nonempty:
+            subs_lines.append(f"{BASE_RAW}/checked/My_Euro/{fname}")
+        subs_lines.append("")
 
-    subs_lines.append("=== ✅ WHITE EUROPE (ALL) ===")
-    subs_lines.append(f"{BASE_RAW}/checked/My_Euro/my_euro_all_WHITE.txt")
-    subs_lines.append("")
+    # WHITE/BLACK — только если есть непустые файлы
+    ru_white_path = os.path.join(FOLDER_RU, "ru_white_all_WHITE.txt")
+    if os.path.exists(ru_white_path) and os.path.getsize(ru_white_path) > 0:
+        subs_lines.append("=== ✅ WHITE RUSSIA (ALL) ===")
+        subs_lines.append(f"{BASE_RAW}/checked/RU_Best/ru_white_all_WHITE.txt")
+        subs_lines.append("")
 
-    subs_lines.append("=== ⚠️ BLACK RUSSIA (ALL) ===")
-    subs_lines.append(f"{BASE_RAW}/checked/RU_Best/ru_white_all_BLACK.txt")
-    subs_lines.append("")
+    euro_white_path = os.path.join(FOLDER_EURO, "my_euro_all_WHITE.txt")
+    if os.path.exists(euro_white_path) and os.path.getsize(euro_white_path) > 0:
+        subs_lines.append("=== ✅ WHITE EUROPE (ALL) ===")
+        subs_lines.append(f"{BASE_RAW}/checked/My_Euro/my_euro_all_WHITE.txt")
+        subs_lines.append("")
 
-    subs_lines.append("=== ⚠️ BLACK EUROPE (ALL) ===")
-    subs_lines.append(f"{BASE_RAW}/checked/My_Euro/my_euro_all_BLACK.txt")
+    ru_black_path = os.path.join(FOLDER_RU, "ru_white_all_BLACK.txt")
+    if os.path.exists(ru_black_path) and os.path.getsize(ru_black_path) > 0:
+        subs_lines.append("=== ⚠️ BLACK RUSSIA (ALL) ===")
+        subs_lines.append(f"{BASE_RAW}/checked/RU_Best/ru_white_all_BLACK.txt")
+        subs_lines.append("")
+
+    euro_black_path = os.path.join(FOLDER_EURO, "my_euro_all_BLACK.txt")
+    if os.path.exists(euro_black_path) and os.path.getsize(euro_black_path) > 0:
+        subs_lines.append("=== ⚠️ BLACK EUROPE (ALL) ===")
+        subs_lines.append(f"{BASE_RAW}/checked/My_Euro/my_euro_all_BLACK.txt")
 
     subs_path = os.path.join(BASE_DIR, "subscriptions_list.txt")
     with open(subs_path, "w", encoding="utf-8") as f:
@@ -795,8 +824,6 @@ if __name__ == "__main__":
         print(f"  {kind:8s}: {n:5d}  ({n * 100 // total_err}%)")
 
     print("\n✅ SUCCESS: FAST/ALL + WHITE/BLACK GENERATED")
-
-
 
 
 
