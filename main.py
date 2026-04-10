@@ -9,6 +9,7 @@ import base64
 import websocket
 import shutil
 import threading
+import subprocess
 from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
@@ -51,6 +52,7 @@ EURO_FILES = ["my_euro_part1.txt", "my_euro_part2.txt", "my_euro_part3.txt"]
 
 HISTORY_FILE = os.path.join(BASE_DIR, "history.json")
 MY_CHANNEL = "@vlesstrojan"
+AUTO_GIT_SYNC = os.environ.get("AUTO_GIT_SYNC", "1") == "1"
 
 URLS_RU = [
     "https://github.com/igareck/vpn-configs-for-russia/blob/main/BLACK_VLESS_RUS_mobile.txt",
@@ -644,6 +646,62 @@ def generate_subscriptions_list(ru_fast_files, ru_all_files, euro_fast_files, eu
     return subs_path
 
 
+def auto_sync_checked_to_repo():
+    """
+    Автосинхронизация результатов в текущий git-репозиторий:
+      - добавляет изменения только в checked/
+      - коммитит только если есть изменения
+      - пушит в текущую ветку
+    """
+    if not AUTO_GIT_SYNC:
+        print("\n⏭️ AUTO_GIT_SYNC=0 — автосинхронизация отключена")
+        return
+
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+
+    def run_git(args):
+        return subprocess.run(
+            ["git", *args],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    # Проверяем, что это git-репозиторий
+    inside_repo = run_git(["rev-parse", "--is-inside-work-tree"])
+    if inside_repo.returncode != 0 or inside_repo.stdout.strip() != "true":
+        print("\n⚠️ Не git-репозиторий: автосинхронизация пропущена")
+        return
+
+    branch_res = run_git(["rev-parse", "--abbrev-ref", "HEAD"])
+    branch = branch_res.stdout.strip() if branch_res.returncode == 0 else "main"
+
+    # Стадируем только checked/ (включая удалённые старые файлы)
+    add_res = run_git(["add", "-A", "checked"])
+    if add_res.returncode != 0:
+        print(f"\n⚠️ git add не выполнен:\n{add_res.stderr.strip()}")
+        return
+
+    has_changes = run_git(["diff", "--cached", "--quiet"])
+    if has_changes.returncode == 0:
+        print("\nℹ️ Изменений в checked/ нет — коммит и push не требуются")
+        return
+
+    commit_msg = f"chore: refresh checked proxies ({time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())})"
+    commit_res = run_git(["commit", "-m", commit_msg])
+    if commit_res.returncode != 0:
+        print(f"\n⚠️ git commit не выполнен:\n{commit_res.stderr.strip()}")
+        return
+    print(f"\n✅ git commit выполнен в ветке {branch}: {commit_msg}")
+
+    push_res = run_git(["push", "origin", branch])
+    if push_res.returncode != 0:
+        print(f"\n⚠️ git push не выполнен:\n{push_res.stderr.strip()}")
+        return
+    print(f"🚀 Изменения в checked/ отправлены в origin/{branch}")
+
+
 # ==================== MAIN ====================
 
 if __name__ == "__main__":
@@ -824,6 +882,7 @@ if __name__ == "__main__":
         print(f"  {kind:8s}: {n:5d}  ({n * 100 // total_err}%)")
 
     print("\n✅ SUCCESS: FAST/ALL + WHITE/BLACK GENERATED")
+    auto_sync_checked_to_repo()
 
 
 

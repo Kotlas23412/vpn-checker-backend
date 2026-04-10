@@ -80,6 +80,14 @@ python main.py
 
 - результаты лежат в `checked/RU_Best` и `checked/My_Euro`;  
 - файл `checked/subscriptions_list.txt` содержит готовые HTTP‑ссылки для импорта в клиент.[cite:9]
+- старые файлы в папках результатов удаляются, сохраняется только новый набор;
+- скрипт автоматически делает `git add -A checked`, `git commit` и `git push` в текущую ветку (если есть изменения).
+
+Чтобы отключить автопубликацию в git:
+
+```bash
+AUTO_GIT_SYNC=0 python main.py
+```
 
 ## Автоматическое обновление (GitHub Actions)
 
